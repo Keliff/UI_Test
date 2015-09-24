@@ -10,4 +10,12 @@ public class Player : MonoBehaviour {
 	public Sprite playerSprite;
 	public string playerName;
 
+	public Player( string name, int health, int move, Sprite sprite )
+	{
+		this.playerName = name;
+		this.health = health;
+		this.move = move;
+		this.playerSprite = sprite;
+	}
+
 }

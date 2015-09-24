@@ -17,15 +17,24 @@ public class BoxTab : MonoBehaviour {
 
 	public List<GameObject> boxChildren;
 
+	public static BoxTab instance;
+
+	// TEST
+	private Button thisButton;
+	private Color defaultNormalColor;
+
 	private void Awake()
 	{
 		//TODO: Ensure that this path is correct
 		baseResourcePath = Application.dataPath + "/Resources/";
 		gridElementPath = "UI Prefabs/GridElement";
+		thisButton = this.GetComponent<Button>();
+		defaultNormalColor = thisButton.colors.normalColor;
 	}
 
 	public void CategoryClicked( string pathModifier )
 	{
+		instance = this;
 		HighlightCategory();
 		ClearBox();
 		PopulateBox( pathModifier );
@@ -35,14 +44,14 @@ public class BoxTab : MonoBehaviour {
 	// Highlights the current selected box category tab
 	private void HighlightCategory()
 	{
-
+		thisButton.image.color = thisButton.colors.pressedColor;
 	}
 
 	// Dulls the current category.
 	// This is called from other categories to ensure the user knows which tab is currently active
 	public void DullCategory()
 	{
-
+		thisButton.image.color = defaultNormalColor;
 	}
 
 	private void PopulateBox( string pathModifier )
@@ -68,15 +77,51 @@ public class BoxTab : MonoBehaviour {
 				// Get an instance of the prefab at that particular moment
 				GameObject fileObj = (GameObject)Resources.Load( pathModifier + "/" + fileName );
 
-				if ( pathModifier == "Players" )
+				switch( pathModifier )
 				{
-					Player playerPreab = fileObj.GetComponent<Player>();
-					SetupGridElement( gridElement, playerPreab.playerSprite, playerPreab.playerName );
+					case "Players":
+						Player playerPreab = fileObj.GetComponent<Player>();
+						SetupGridElement( gridElement, playerPreab.playerSprite, playerPreab.playerName );
+						break;
+					case "Enemies":
+						Enemy enemyPrefab = fileObj.GetComponent<Enemy>();
+						SetupGridElement( gridElement, enemyPrefab.enemySprite, enemyPrefab.enemyName );
+						break;
+					case "NPCs":
+						NPC NPCPrefab = fileObj.GetComponent<NPC>();
+						SetupGridElement( gridElement, NPCPrefab.NPCSprite, NPCPrefab.NPCName );
+						break;
+					case "Tiles":
+						Tile tilePrefab = fileObj.GetComponent<Tile>();
+						SetupGridElement( gridElement, tilePrefab.tileSprite, null );
+						break;
+					default:
+						break;
 				}
+
+//				if ( pathModifier == "Players" )
+//				{
+//					Player playerPreab = fileObj.GetComponent<Player>();
+//					SetupGridElement( gridElement, playerPreab.playerSprite, playerPreab.playerName );
+//				}
 				// TODO: Add in the other tabCases here
 				// TODO: Stop the user from spamming clicking on the button to keep spawning more and more of the children. Add a check to stop that.
+
 			}
-		}
+		}// end foreach
+
+	}
+
+	private void AddPlusButton( string pathModifier )
+	{
+		// based on the pathModifier, make the resource path to the particular plus button I want
+		string resourcePath = "UI Prefabs/Plus";
+		resourcePath += pathModifier;
+		resourcePath += "Button"; 
+
+		// Load that plus button in to the same hierarchy that the gridElements were just added to moments ago
+		GameObject plusButton = Instantiate( (GameObject)Resources.Load( resourcePath ) );
+		plusButton.transform.SetParent( theBox.transform );
 	}
 
 	private void SetupGridElement( GameObject gridElement, Sprite image, string text )
@@ -105,10 +150,6 @@ public class BoxTab : MonoBehaviour {
 	 *
 	 *	It opens up a new UI window and displays all the necessary, editable fields related to the class at hand.
 	 * */
-	private void AddPlusButton( string pathModifier )
-	{
-
-	}
 	
 
 }
