@@ -12,6 +12,8 @@ public class BoxTab : MonoBehaviour {
 	private string baseResourcePath;
 	// Path to this particular prefab
 	private string gridElementPath;
+	// Path to the folder prefab
+	private string gridFolderPath;
 	// This is only not a static value right now for the sake of testing. This refers to the Box itself.
 	public GameObject theBox;
 
@@ -23,11 +25,13 @@ public class BoxTab : MonoBehaviour {
 	private Button thisButton;
 	private Color defaultNormalColor;
 
+	public string modifier;
+
 	private void Awake()
 	{
-		//TODO: Ensure that this path is correct
 		baseResourcePath = Application.dataPath + "/Resources/";
 		gridElementPath = "UI Prefabs/GridElement";
+		gridFolderPath = "UI Prefabs/GridFolder";
 		thisButton = this.GetComponent<Button>();
 		defaultNormalColor = thisButton.colors.normalColor;
 	}
@@ -35,6 +39,8 @@ public class BoxTab : MonoBehaviour {
 	public void CategoryClicked( string pathModifier )
 	{
 		instance = this;
+		modifier = pathModifier;
+
 		HighlightCategory();
 		ClearBox();
 		PopulateBox( pathModifier );
@@ -54,7 +60,29 @@ public class BoxTab : MonoBehaviour {
 		thisButton.image.color = defaultNormalColor;
 	}
 
-	private void PopulateBox( string pathModifier )
+	private bool DirectoryContainsFolder( FileInfo[] directoryFiles )
+	{
+
+		foreach( FileInfo file in directoryFiles )
+		{
+			if ( ExtensionIsOnlyMeta( file.Name ) )
+				return true;
+		}
+
+		// REMOVE THIS WHEN YOU'RE FINISHED WRITING
+		return false;
+	}
+
+	private bool ExtensionIsOnlyMeta( string fileName )
+	{
+		// This folder contains .prefab, .prefab.meta, and .meta files
+		if ( fileName.Substring( fileName.IndexOf('.') ) == ".meta" )
+			return true;
+		else
+			return false;
+	}
+
+	public void PopulateBox( string pathModifier )
 	{
 		// Making the path for the Directory to load
 		string path = baseResourcePath + pathModifier;
@@ -63,7 +91,77 @@ public class BoxTab : MonoBehaviour {
 		// Get a list of files in the directory
 		FileInfo[] info = directory.GetFiles();
 		// Iterate through every file in the directory
-		foreach ( FileInfo file in info )
+
+	// New stuff
+
+		// Determine if this folder contains a folder.
+		if ( DirectoryContainsFolder( info ) )
+		{
+			Dictionary< string, GameObject > gridFolders = new Dictionary< string, GameObject >();
+			// This variable exists as a fail-safe in the case there is only one folder, to know which string to access in the dictionary
+			string single = null;
+
+			// Gets a list of the folder paths and the folder names
+			foreach( FileInfo file in info )
+			{
+				// Only look at the folders
+				if ( ExtensionIsOnlyMeta( file.Name ) )
+				{
+					// Get the folderName
+					string folderName = Path.GetFileNameWithoutExtension( file.Name );
+					single = folderName;
+					GameObject folderPrefab = Instantiate( (GameObject)Resources.Load( gridFolderPath ) );
+
+					// Get the script, which is attached to the first child of the GameObjct
+					GEFolderClick script = folderPrefab.transform.GetChild( 0 ).GetComponent<GEFolderClick>();
+					// Set the folder script values
+					script.folderName = folderName;
+					script.folderPath = file.FullName;
+					// Set the Text value
+					folderPrefab.transform.GetChild(1).GetComponent<Text>().text = folderName;
+
+					// Add the folder to the dictionary
+					gridFolders.Add( folderName, folderPrefab );
+				}
+			}
+
+			// If there is more than one folder within this folder
+			if ( gridFolders.Count > 1 )
+			{
+				// Get a list of the folderNames
+				List<string> folderNames = new List<string>();
+				foreach( string gridFolderName in gridFolders.Keys )
+				{
+					folderNames.Add( gridFolderName );
+				}
+				// Sort the folder names, if there is more than one
+				// Since they are strings this is automatically handled alphabetically
+				folderNames.Sort();
+				// Put the folders in the correct order
+				foreach( string folderName in folderNames )
+				{
+					gridFolders[ folderName ].transform.SetParent( theBox.transform );
+				}
+			}
+			else if ( gridFolders.Count == 1 ) {
+				gridFolders[ single ].transform.SetParent( theBox.transform );
+			}
+			// We want to make sure NOT to take any action if the count of the dictionary is 0
+
+			// And then populate the box like normal
+			PopulateBoxWithPrefabs( info, pathModifier );
+		} else
+		{
+			PopulateBoxWithPrefabs( info, pathModifier );
+		}
+
+
+
+	}
+
+	private void PopulateBoxWithPrefabs( FileInfo[] directoryFiles, string pathModifier )
+	{
+		foreach ( FileInfo file in directoryFiles )
 		{
 			// There are .meta files when dealing with prefabs. It's important to ignore them as they are not the actual objects that I am looking for.
 			if ( Path.GetExtension( file.Name ) == ".prefab" )
@@ -77,42 +175,45 @@ public class BoxTab : MonoBehaviour {
 				// Get an instance of the prefab at that particular moment
 				GameObject fileObj = (GameObject)Resources.Load( pathModifier + "/" + fileName );
 
-				switch( pathModifier )
+				switch( modifier )
 				{
-					case "Players":
-						Player playerPreab = fileObj.GetComponent<Player>();
-						SetupGridElement( gridElement, playerPreab.playerSprite, playerPreab.playerName );
-						break;
-					case "Enemies":
-						Enemy enemyPrefab = fileObj.GetComponent<Enemy>();
-						SetupGridElement( gridElement, enemyPrefab.enemySprite, enemyPrefab.enemyName );
-						break;
-					case "NPCs":
-						NPC NPCPrefab = fileObj.GetComponent<NPC>();
-						SetupGridElement( gridElement, NPCPrefab.NPCSprite, NPCPrefab.NPCName );
-						break;
-					case "Tiles":
-						Tile tilePrefab = fileObj.GetComponent<Tile>();
-						SetupGridElement( gridElement, tilePrefab.tileSprite, null );
-						break;
-					default:
-						break;
+				case "Players":
+					Player playerPreab = fileObj.GetComponent<Player>();
+					SetupGridElement( gridElement, playerPreab.playerSprite, playerPreab.playerName );
+					Player gridPlayer =  gridElement.AddComponent<Player>();
+					gridPlayer.SetPlayerValues( playerPreab );
+					break;
+				case "Enemies":
+					Enemy enemyPrefab = fileObj.GetComponent<Enemy>();
+					SetupGridElement( gridElement, enemyPrefab.enemySprite, enemyPrefab.enemyName );
+					Enemy gridEnemy =  gridElement.AddComponent<Enemy>();					
+					gridEnemy.SetEnemyValues( enemyPrefab );
+					break;
+				case "NPCs":
+					NPC NPCPrefab = fileObj.GetComponent<NPC>();
+					SetupGridElement( gridElement, NPCPrefab.NPCSprite, NPCPrefab.NPCName );
+					// TODO: When NPC is designed, make sure to update this to attach the correct script
+					break;
+				case "Tiles":
+					Tile tilePrefab = fileObj.GetComponent<Tile>();
+					SetupGridElement( gridElement, tilePrefab.tileSprite, null );
+					break;
+				default:
+					break;
 				}
-
-//				if ( pathModifier == "Players" )
-//				{
-//					Player playerPreab = fileObj.GetComponent<Player>();
-//					SetupGridElement( gridElement, playerPreab.playerSprite, playerPreab.playerName );
-//				}
-				// TODO: Add in the other tabCases here
+				
+				//				if ( pathModifier == "Players" )
+				//				{
+				//					Player playerPreab = fileObj.GetComponent<Player>();
+				//					SetupGridElement( gridElement, playerPreab.playerSprite, playerPreab.playerName );
+				//				}
 				// TODO: Stop the user from spamming clicking on the button to keep spawning more and more of the children. Add a check to stop that.
-
+				
 			}
 		}// end foreach
-
 	}
 
-	private void AddPlusButton( string pathModifier )
+	public void AddPlusButton( string pathModifier )
 	{
 		// based on the pathModifier, make the resource path to the particular plus button I want
 		string resourcePath = "UI Prefabs/Plus";

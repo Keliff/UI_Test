@@ -18,4 +18,14 @@ public class Player : MonoBehaviour {
 		this.playerSprite = sprite;
 	}
 
+	// Used to set the current Player's values equal to another Player's
+	public void SetPlayerValues( Player other )
+	{
+		this.health = other.health;
+		this.move = other.move;
+		this.initiative = other.initiative;
+		this.playerSprite = other.playerSprite;
+		this.playerName = other.playerName;
+	}
+
 }
